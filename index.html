@@ -53,6 +53,21 @@
             padding: 0;
 
             overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+                     env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+        }
+
+        /* Keep world-space board and screen-space UI in their designed layout. */
+        #unity-game-frame {
+            position: relative;
+            flex: none;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            overflow: hidden;
         }
 
         /* ================================
@@ -137,7 +152,8 @@
 
 <div id="unity-container">
 
-    <canvas id="unity-canvas" tabindex="-1"></canvas>
+  <div id="unity-game-frame">
+    <canvas id="unity-canvas" width="1920" height="1080" tabindex="-1"></canvas>
 
     <div id="unity-loading">
         <div>Loading...</div>
@@ -149,6 +165,7 @@
 
     <div id="unity-warning"></div>
 
+  </div>
 </div>
 
 
@@ -206,21 +223,24 @@
     const buildUrl = "Build";
 
     const loaderUrl =
-        buildUrl + "/증강육목.loader.js";
+        buildUrl + "/증강육목.loader.js?v=b61f6177608c";
 
     const config = {
+
+        // Fixed reference resolution also keeps pixel-based runtime UI stable.
+        matchWebGLToCanvasSize: false,
 
         arguments: [],
 
         dataUrl:
-            buildUrl + "/증강육목.data.unityweb",
+            buildUrl + "/증강육목.data.unityweb?v=7614e4c8f7a7",
 
         frameworkUrl:
-            buildUrl + "/증강육목.framework.js.unityweb",
+            buildUrl + "/증강육목.framework.js.unityweb?v=6285426711e3",
 
 
         codeUrl:
-            buildUrl + "/증강육목.wasm.unityweb",
+            buildUrl + "/증강육목.wasm.unityweb?v=7dd46a929420",
 
 
 
@@ -239,6 +259,40 @@
         showBanner:
             unityShowBanner
     };
+
+    const container = document.querySelector("#unity-container");
+    const gameFrame = document.querySelector("#unity-game-frame");
+    function fitGameViewport() {
+        const fullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+        const viewport = !fullscreen && window.visualViewport;
+        container.style.width = (viewport ? viewport.width : window.innerWidth) + "px";
+        container.style.height = (viewport ? viewport.height : window.innerHeight) + "px";
+        container.style.left = (viewport ? viewport.offsetLeft : 0) + "px";
+        container.style.top = (viewport ? viewport.offsetTop : 0) + "px";
+        const style = getComputedStyle(container);
+        const width = Math.max(0, container.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight));
+        const height = Math.max(0, container.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom));
+        const scale = Math.min(width / 1920, height / 1080);
+        gameFrame.style.width = (1920 * scale) + "px";
+        gameFrame.style.height = (1080 * scale) + "px";
+    }
+    let fitPending = false;
+    function scheduleViewportFit() {
+        if (fitPending) return;
+        fitPending = true;
+        requestAnimationFrame(() => { fitPending = false; fitGameViewport(); });
+    }
+    window.addEventListener("resize", scheduleViewportFit);
+    window.addEventListener("orientationchange", scheduleViewportFit);
+    document.addEventListener("fullscreenchange", scheduleViewportFit);
+    document.addEventListener("webkitfullscreenchange", scheduleViewportFit);
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", scheduleViewportFit);
+        window.visualViewport.addEventListener("scroll", scheduleViewportFit);
+    }
+    if (typeof ResizeObserver !== "undefined")
+        new ResizeObserver(scheduleViewportFit).observe(container);
+    fitGameViewport();
 
 
     // =====================================
